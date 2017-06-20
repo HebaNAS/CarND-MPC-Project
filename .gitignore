@@ -1,5 +1,6 @@
 .vscode
-build
 tags
 .editorconfig
 .DS_Store
+term2_sim_mac/
+Ipopt-3.12.8/

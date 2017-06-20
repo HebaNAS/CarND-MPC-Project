@@ -1,0 +1,3 @@
+/Users/Heba/GitHub/SDCN-Project-10/build/CMakeFiles/rebuild_cache.dir
+/Users/Heba/GitHub/SDCN-Project-10/build/CMakeFiles/edit_cache.dir
+/Users/Heba/GitHub/SDCN-Project-10/build/CMakeFiles/mpc.dir

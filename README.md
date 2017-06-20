@@ -3,6 +3,58 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+## Project Description
+
+#### Recording of Simulator Run
+[YouTube Link](https://youtu.be/Yzkd5BQ8WRA).
+
+#### Walkthrough of project
+
+- Model predictive control (MPC) is an advanced method of process control. It has the ability to anticipate future events and can take control actions accordingly. This is an advantage of MPC over PID controllers.
+
+- MPC is based on iterative, finite-horizon optimization of a plant model. At time t the current plant state is sampled and a cost minimizing control strategy is computed for a relatively short time horizon in the future. Only the first step of the control strategy is implemented, then the plant state is sampled again and the calculations are repeated starting from the new current state, yielding a new control and new predicted state path. The prediction horizon keeps being shifted forward.
+
+- Inital state vector has 6 variables; 
+  - `px`, the current location in the x-axis of an arbitrary global map coordinate system (given by simulator)
+  - `py`, the current location in the y-axis of an arbitrary global map coordinate system (given by simulator)
+  - `psi`, the current orientation (given by simulator)
+  - `v`, the current velocity (given by simulator)
+  - `cte`, the cross track error which is the difference between our desired position and actual position (calculated through polynomial fitting at point `px = 0`)
+  - `epsi`, the orientation error which is the difference between our desired heading and actual heading (calculated using an arctan to the derivative of the fitted polynomial function at point `px = 0`)
+
+- Actuators are represented through 2 variables;
+  - `delta`, the steering value. The angle is restricted to be between -25 and 25 degrees, or `-0.4 * Lf` and `0.4 * Lf` radians.
+  - `a`, the throttle value. It is restricted to be between -1 and 1. Negative values represent decceleration/braking while positive values represent acceleration.
+
+- The main goal for us is to keep the car coordinates close to the waypoints given by an arbitrary global map coordinate system.
+
+- `Main.cpp`:
+  - First, waypoints were transformed to the vehicle's local coordinate system (lines 104 - 111). This helps with the polynomial fitting as the car is nearly following a horizontal line.
+  - Waypoints were converted from a doubles vector to a VectorXd (lines 113-117).
+  - Polyfit applied using 3rd order polynomial function. This estimates the road ahead. A smaller order polynomial may cause underfitting, and a higher order polynomial may cause overfitting (line 119).
+  - `cte` and `epsi` were calculated from the coefficients given by the polyfit function (lines 121-122).
+  - Applied a latency of `100ms`. A contributing factor to latency is actuator dynamics. For example the time elapsed between when you command a steering angle to when that angle is actually achieved. We initiate the vehicle model starting from the current state for the duration of the latency. The resulting state from the simulation is the new initial state for MPC (lines 130-138).
+  - State vector is fed the new values for variables taking latency into account (line 140).
+  - The future state of the vehicle is predicted using the MPC model (line 142).
+  - We draw the refernce path for the car (the yellow line) (lines 145-154).
+  - We draw the predicted path for the car (the green line) (lines 157-166).
+
+- `MPC.cpp`:
+  - Timestep length `N` is set to 10. It is a moderate value, smaller values will cause the car to go off the track while bigger values will be computationally expensive (lines 9-10).
+  - `ref_cte` and `ref_epsi` are set to `0` as we want the car to align to the refernce path. `ref_v` is set to `100` which is somewhat fast (lines 24-26).
+  - Car state variables initialized (lines 28-35).
+  - We start calculating fg[0] which is the cost function that gets updated.
+  - Cost weights were chosen through trial and error. `2000` was given as a weight for `cte` and `epsi` to keep them low. For `v` we give low attention so the no weight were given. For the steering `delta`, the weight given was moderate as we want the steering to be smooth. Acceleration `a` was given a low weight of `10` (lines 49-65).
+  - We initialize the model to the initial state. `fg[0]` is reserved for the cost value, so the other indices are bumped up by 1 (lines 72-77).
+  - All the other constraints based on the vehicle model. `fg[1 + psi_start]` is where we store the initial value of ψ. So, `fg[1 + psi_start + t]` is reserved for the values of ψ that the solver computes. We get the values for both current time `t` and time `t+1` (lines 82-95).
+  - For steering and accelerattion, we only consider the actuations at time `t` (lines 98-99).
+  - Cost function calculation using polynomial (lines 101-102).
+  - The solver will force this value of fg to always be 0 (lines 104-110).
+  - We set the upper and lower bounds for the actuators. Values were chosen through trial and error. The chosen values worked well in the simulator with smooth steering and good speeding/braking. A special case has been given to the initial state so the simulator knows where to start (lines 155-194).
+  - We get the best solution given by the MPC solver and predict where the car will be in the future and we return that value (lines 238-248).
+
+---
+
 ## Dependencies
 
 * cmake >= 3.5
@@ -50,66 +102,9 @@ Self-Driving Car Engineer Nanodegree Program
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
 
-## Tips
+---
 
-1. It's recommended to test the MPC on basic examples to see if your implementation behaves as desired. One possible example
-is the vehicle starting offset of a straight line (reference). If the MPC implementation is correct, after some number of timesteps
-(not too many) it should find and track the reference line.
-2. The `lake_track_waypoints.csv` file has the waypoints of the lake track. You could use this to fit polynomials and points and see of how well your model tracks curve. NOTE: This file might be not completely in sync with the simulator so your solution should NOT depend on it.
-3. For visualization this C++ [matplotlib wrapper](https://github.com/lava/matplotlib-cpp) could be helpful.
+## References
 
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/b1ff3be0-c904-438e-aad3-2b5379f0e0c3/concepts/1a2255a0-e23c-44cf-8d41-39b8a3c8264a)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
+1. [Udacity](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/ecca4e03-46d1-44c6-a34e-99c0f653414e)
+2. [Wikipedia](https://en.wikipedia.org/wiki/Model_predictive_control).
